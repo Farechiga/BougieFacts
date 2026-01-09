@@ -13,7 +13,6 @@
             --blue: #a1c4fd;
         }
 
-        /* 1. Magical Shifting Background */
         body {
             margin: 0;
             padding: 0;
@@ -21,7 +20,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Rounded Mplus 1c', 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #a1c4fd, #c2e9fb, #d8bfd8);
             background-size: 400% 400%;
             animation: gradientShift 15s ease infinite;
@@ -34,30 +33,29 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* 2. Container with Background Margins */
         #viewport-wrapper {
             width: 90vw;
-            height: 90vh; /* Leaves 5vh margin top/bottom */
-            background: rgba(255, 255, 255, 0.85);
+            height: 85vh;
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
             border-radius: 40px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
             display: flex;
-            padding: 40px;
+            padding: 50px;
             box-sizing: border-box;
-            gap: 50px;
+            gap: 60px;
             align-items: center;
             justify-content: center;
         }
 
-        /* 3. Pixel-Perfect Grid & Stack */
+        /* Magnitude Stack and Grid */
         #stack-container {
             height: 1000px; /* 20 units * 50px */
             width: 140px;
             position: relative;
-            background: white;
+            background: #fdfdfd;
             border: 4px solid var(--purple);
-            border-radius: 15px;
+            border-radius: 20px;
             overflow: hidden;
         }
 
@@ -80,43 +78,47 @@
             position: absolute;
             width: 100%;
             border-bottom: 2px solid white;
-            transition: height 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .block-a { background-color: var(--blue); }
         .block-b { background-color: var(--pink); }
 
-        /* 4. Problem & Input UI */
+        /* Problem Display UI */
         #problem-area { flex: 1; text-align: center; }
         
         #problem-display {
-            font-size: 6rem;
-            margin-bottom: 30px;
+            font-size: 7rem;
+            margin-bottom: 40px;
             font-weight: 800;
-            color: #333;
+            color: #2c3e50;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
+            gap: 20px;
+            min-height: 200px;
         }
 
-        /* Warm-up Multi-fields */
-        .w-field, .ans-field {
-            font-size: 4rem;
-            width: 120px;
+        /* Inputs */
+        input[type=number] {
+            font-size: 5rem;
+            width: 140px;
             text-align: center;
-            border: 5px solid var(--purple);
-            border-radius: 20px;
+            border: 6px solid var(--purple);
+            border-radius: 25px;
             padding: 10px;
             outline: none;
             background: white;
-            color: #333;
+            color: #2c3e50;
+            transition: transform 0.2s;
         }
-        .ans-field { width: 180px; }
 
-        /* Stats & Overlays */
-        #stats { margin-top: 30px; font-size: 1.5rem; color: #555; line-height: 1.8; }
-        .score-box { font-weight: bold; color: var(--purple); background: #eee; padding: 5px 15px; border-radius: 10px; }
+        input[type=number]:focus { transform: scale(1.05); border-color: #a29bfe; }
 
+        /* Stats */
+        #stats { font-size: 1.8rem; color: #7f8c8d; line-height: 2; }
+        .score-box { font-weight: bold; color: var(--purple); background: #f0f0f0; padding: 4px 18px; border-radius: 12px; }
+
+        /* Reward Overlay Fix */
         #reward-overlay {
             display: none;
             position: fixed;
@@ -126,11 +128,22 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 9999;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #reward-overlay img { max-width: 600px; border-radius: 30px; margin-bottom: 20px; }
+
+        @keyframes popIn { from { opacity:0; transform: scale(0.8); } to { opacity:1; transform: scale(1); } }
+
+        #reward-overlay img { 
+            max-width: 550px; 
+            max-height: 550px; 
+            border-radius: 40px; 
+            box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+            margin-bottom: 30px; 
+        }
         
-        /* Disable arrows on number inputs */
+        #reward-overlay h1 { font-size: 5rem; color: var(--purple); margin: 0; }
+
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
@@ -148,8 +161,7 @@
         </div>
 
         <div id="problem-area">
-            <div id="problem-display">Loading...</div>
-            
+            <div id="problem-display">Magic Loading...</div>
             <div id="stats">
                 <div>Warm-up: <span id="ccc-count" class="score-box">0/20</span></div>
                 <div>Streak: <span id="streak-val" class="score-box">0</span>/10</div>
@@ -166,9 +178,7 @@
             sets: 0,
             timerId: null,
             currentProblem: null,
-            isProcessing: false,
-            knowns: [[2,2], [5,5], [3,3]],
-            learning: [[7,5], [6,9], [8,4], [7,6], [9,3]]
+            isProcessing: false
         };
 
         const display = document.getElementById('problem-display');
@@ -176,15 +186,25 @@
         const overlay = document.getElementById('reward-overlay');
 
         function speak(text, callback) {
+            window.speechSynthesis.cancel();
             const msg = new SpeechSynthesisUtterance(text);
             msg.lang = 'en-AU';
-            msg.rate = 0.9;
+            msg.rate = 0.85;
             if (callback) msg.onend = callback;
             window.speechSynthesis.speak(msg);
         }
 
-        function clearAllTimers() {
-            if (state.timerId) { clearTimeout(state.timerId); state.timerId = null; }
+        function generateProblem() {
+            const isHard = Math.random() < 0.2; // 80/20 Rule: 80% <= 15, 20% <= 20
+            const max = isHard ? 20 : 15;
+            const min = isHard ? 16 : 2;
+            let a, b, sum;
+            do {
+                a = Math.floor(Math.random() * (max - 1)) + 1;
+                b = Math.floor(Math.random() * (max - 1)) + 1;
+                sum = a + b;
+            } while (sum > max || sum < min);
+            return { a, b, sum };
         }
 
         function renderStack(a, b) {
@@ -194,56 +214,42 @@
             `;
         }
 
-        function startRound() {
-            clearAllTimers();
+        function initRound() {
+            if (state.timerId) clearTimeout(state.timerId);
             state.isProcessing = false;
             
             if (state.cccCount < 20) {
                 state.phase = 'WARMUP';
-                const pair = state.learning[Math.floor(Math.random() * state.learning.length)];
-                state.currentProblem = { a: pair[0], b: pair[1], sum: pair[0] + pair[1] };
-                
-                renderStack(pair[0], pair[1]);
-                display.innerHTML = `${pair[0]} + ${pair[1]} = ${state.currentProblem.sum}`;
-                
-                speak(`${pair[0]} plus ${pair[1]} is ${state.currentProblem.sum}`, () => {
+                state.currentProblem = generateProblem();
+                renderStack(state.currentProblem.a, state.currentProblem.b);
+                display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}`;
+                speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
                     setTimeout(setupWarmupInputs, 800);
                 });
             } else {
                 state.phase = 'CHALLENGE';
-                const pool = Math.random() < 0.2 ? state.learning : state.knowns;
-                const pair = pool[Math.floor(Math.random() * pool.length)];
-                state.currentProblem = { a: pair[0], b: pair[1], sum: pair[0] + pair[1] };
-                
-                renderStack(pair[0], pair[1]);
-                display.innerHTML = `${pair[0]} + ${pair[1]} = <input type="number" id="ans" class="ans-field" autofocus>`;
-                
+                state.currentProblem = generateProblem();
+                renderStack(state.currentProblem.a, state.currentProblem.b);
+                display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = <input type="number" id="ans" autofocus>`;
                 const input = document.getElementById('ans');
                 input.focus();
                 input.onkeydown = (e) => { if(e.key === 'Enter') checkChallenge(input.value); };
-
-                // 3s Timer starts ONLY once input is ready
-                state.timerId = setTimeout(() => handleFailure("Out of time!"), 3000);
+                state.timerId = setTimeout(() => handleFailure(), 3000); // Hard 3s Timer
             }
         }
 
         function setupWarmupInputs() {
             display.innerHTML = `
-                <input type="number" id="w1" class="w-field" autofocus> 
-                <span>+</span> 
-                <input type="number" id="w2" class="w-field"> 
-                <span>=</span> 
-                <input type="number" id="w3" class="w-field">
+                <input type="number" id="w1" autofocus> + 
+                <input type="number" id="w2"> = 
+                <input type="number" id="w3">
             `;
-            
             const fields = [document.getElementById('w1'), document.getElementById('w2'), document.getElementById('w3')];
             fields.forEach((f, i) => {
                 f.oninput = () => {
-                    // Auto-jump logic
-                    if (i < 2 && f.value.length >= 1) fields[i+1].focus();
-                    if (i === 2 && f.value.length >= 2) checkWarmup(fields);
+                    if (i < 2 && f.value.length >= 1) fields[i+1].focus(); // Auto-tab
+                    if (i === 2 && f.value.length >= (state.currentProblem.sum >= 10 ? 2 : 1)) checkWarmup(fields);
                 };
-                f.onkeydown = (e) => { if(e.key === 'Enter') checkWarmup(fields); };
             });
         }
 
@@ -251,64 +257,54 @@
             const v1 = parseInt(fields[0].value);
             const v2 = parseInt(fields[1].value);
             const v3 = parseInt(fields[2].value);
+            const isCorrect = ((v1 === state.currentProblem.a && v2 === state.currentProblem.b) || 
+                               (v1 === state.currentProblem.b && v2 === state.currentProblem.a)) && 
+                              v3 === state.currentProblem.sum;
             
-            const correctOrder = (v1 === state.currentProblem.a && v2 === state.currentProblem.b) || 
-                                 (v1 === state.currentProblem.b && v2 === state.currentProblem.a);
-            
-            if (correctOrder && v3 === state.currentProblem.sum) {
+            if (isCorrect) {
                 state.cccCount++;
                 document.getElementById('ccc-count').innerText = `${state.cccCount}/20`;
-                startRound();
-            } else {
-                handleFailure("Let's try again.");
-            }
+                initRound();
+            } else { handleFailure(); }
         }
 
         function checkChallenge(val) {
-            clearAllTimers();
             if (state.isProcessing) return;
+            clearTimeout(state.timerId);
             state.isProcessing = true;
-
             if (parseInt(val) === state.currentProblem.sum) {
                 state.streak++;
                 updateStats();
                 if (state.streak === 10) triggerReward(false);
                 else if (state.streak === 20) triggerReward(true);
-                else startRound();
-            } else {
-                handleFailure("Not quite.");
-            }
+                else initRound();
+            } else { handleFailure(); }
         }
 
-        function handleFailure(msg) {
-            clearAllTimers();
+        function handleFailure() {
+            clearTimeout(state.timerId);
+            state.isProcessing = true;
             state.streak = 0;
             updateStats();
-            display.innerHTML = `<span style="color:red">${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}</span>`;
+            display.innerHTML = `<span style="color:#e74c3c">${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}</span>`;
             speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
-                setTimeout(startRound, 1000);
+                setTimeout(initRound, 1000);
             });
         }
 
         function triggerReward(isDouble) {
-            confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
-            const title = isDouble ? "DOUBLE BOUGIE!" : "BOUGIE STREAK!";
-            const imgs = [
-                'assets/Calf crash.png', 'assets/Calf hop.png', 'assets/Calf kick.png', 
-                'assets/Calf licking daisy.png', 'assets/Calf Milk.png', 
-                'assets/Calf Sitting.png', 'assets/Calf v Butterfly.png'
-            ];
-            const img = isDouble ? 'assets/Double Bougie Ramming.png' : imgs[Math.floor(Math.random() * imgs.length)];
+            confetti({ particleCount: 250, spread: 100, origin: { y: 0.6 } });
+            const imgs = ['Calf crash.png', 'Calf hop.png', 'Calf kick.png', 'Calf licking daisy.png', 'Calf Milk.png', 'Calf Sitting.png', 'Calf v Butterfly.png'];
+            const img = isDouble ? 'Double Bougie Ramming.png' : imgs[Math.floor(Math.random() * imgs.length)];
             
-            overlay.innerHTML = `<img src="${img}"><h1>${title}</h1>`;
+            overlay.innerHTML = `<img src="assets/${img}"><h1>${isDouble ? 'DOUBLE BOUGIE!' : 'BOUGIE STREAK!'}</h1>`;
             overlay.style.display = 'flex';
-            
-            speak(title, () => {
+            speak(isDouble ? 'Double Bougie!' : 'Bougie Streak!', () => {
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     if (!isDouble) state.sets++;
-                    startRound();
-                }, 3000);
+                    initRound();
+                }, 3500);
             });
         }
 
@@ -318,9 +314,8 @@
         }
 
         window.onload = () => {
-            // Wait for voices to load
-            window.speechSynthesis.onvoiceschanged = () => { startRound(); window.speechSynthesis.onvoiceschanged = null; };
-            if (window.speechSynthesis.getVoices().length > 0) startRound();
+            window.speechSynthesis.onvoiceschanged = () => { if(!state.currentProblem) initRound(); };
+            if (window.speechSynthesis.getVoices().length > 0) initRound();
         };
     </script>
 </body>
