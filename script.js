@@ -1,106 +1,126 @@
 /**
  * MATH MAGIC: BOUGIE STREAKS 
- * Logic Engine v2.0
+ * Logic Engine v3.0 - Discrete Phases & 80/20 Sum Distribution
  */
 
 const state = {
-    phase: 'WARMUP', // WARMUP or CHALLENGE
-    level: 1,
-    knowns: [[2, 2], [5, 5], [3, 3]],
-    learning: [[7, 5], [6, 9], [8, 4], [7, 6]],
-    currentProblem: null,
+    phase: 'WARMUP', // Phase 1: WARMUP, Phase 2: CHALLENGE
     cccCount: 0,
     streak: 0,
     sets: 0,
     timerId: null,
-    isProcessing: false
+    currentProblem: null,
+    isProcessing: false,
 };
 
-const UNIT_PX = 50;
+// Configuration Constants
+const UNIT_PX = 50; 
 const streakImages = [
     'assets/Calf crash.png', 'assets/Calf hop.png', 'assets/Calf kick.png', 
     'assets/Calf licking daisy.png', 'assets/Calf Milk.png', 
     'assets/Calf Sitting.png', 'assets/Calf v Butterfly.png'
 ];
 
-// DOM Elements
-const problemText = document.getElementById('problem-text');
-const inputArea = document.getElementById('input-area');
-const stackEl = document.getElementById('visual-stack');
-const rewardOverlay = document.getElementById('reward-overlay');
+/**
+ * 1. PROBLEM GENERATION (80/20 Rule)
+ * 80% Sums up to 15 | 20% Sums up to 20
+ */
+function generateProblemData() {
+    const isHard = Math.random() < 0.2; // 20% chance for hard
+    const max = isHard ? 20 : 15;
+    const min = isHard ? 16 : 2; // Hard problems sum 16-20, Easy sum 2-15
+
+    let a, b, sum;
+    do {
+        a = Math.floor(Math.random() * (max - 1)) + 1;
+        b = Math.floor(Math.random() * (max - 1)) + 1;
+        sum = a + b;
+    } while (sum > max || sum < min || a === 0 || b === 0);
+
+    return { a, b, sum };
+}
 
 /**
- * 1. CORE UTILITIES
+ * 2. SPEECH ENGINE (Australian English)
  */
 function speak(text, callback) {
+    // Cancel any current speech to prevent overlap
+    window.speechSynthesis.cancel();
     const msg = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    msg.voice = voices.find(v => v.lang === 'en-AU' || v.lang === 'en-GB') || voices[0];
     msg.lang = 'en-AU';
     msg.rate = 0.9;
     if (callback) msg.onend = callback;
     window.speechSynthesis.speak(msg);
 }
 
-function clearAllTimers() {
-    if (state.timerId) {
-        clearTimeout(state.timerId);
-        state.timerId = null;
-    }
+/**
+ * 3. VISUALS
+ */
+function renderStack(a, b) {
+    const stackEl = document.getElementById('visual-stack');
+    stackEl.innerHTML = `
+        <div class="block block-a" style="height:${a * UNIT_PX}px; bottom:0;"></div>
+        <div class="block block-b" style="height:${b * UNIT_PX}px; bottom:${a * UNIT_PX}px;"></div>
+    `;
 }
 
 /**
- * 2. GAME FLOW CONTROLLER
+ * 4. ROUND CONTROLLER
  */
-function nextRound() {
-    clearAllTimers();
+function initRound() {
+    if (state.timerId) clearTimeout(state.timerId);
     state.isProcessing = false;
 
     if (state.cccCount < 20) {
         state.phase = 'WARMUP';
-        startWarmup();
+        runWarmupStep1();
     } else {
         state.phase = 'CHALLENGE';
-        startChallenge();
+        runChallenge();
     }
 }
 
 /**
- * 3. WARMUP MODE (Cover-Copy-Compare with 3 Fields)
+ * 5. PHASE 1: WARMUP (Step 1: Show/Speak -> Step 2: 3-Field Input)
  */
-function startWarmup() {
-    const pool = state.learning;
-    const pair = pool[Math.floor(Math.random() * pool.length)];
-    state.currentProblem = { a: pair[0], b: pair[1], sum: pair[0] + pair[1] };
-
-    renderStack(pair[0], pair[1]);
+function runWarmupStep1() {
+    state.currentProblem = generateProblemData();
+    renderStack(state.currentProblem.a, state.currentProblem.b);
     
-    // Show and Read aloud
-    problemText.innerHTML = `${pair[0]} + ${pair[1]} = ${state.currentProblem.sum}`;
-    speak(`${pair[0]} plus ${pair[1]} is ${state.currentProblem.sum}`, () => {
-        // After narration, switch to input fields
-        setTimeout(() => {
-            setupWarmupFields();
-        }, 1000);
+    const display = document.getElementById('problem-display');
+    display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}`;
+    
+    speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
+        setTimeout(runWarmupStep2, 1000);
     });
 }
 
-function setupWarmupFields() {
-    problemText.innerHTML = `
-        <input type="number" id="w1" class="w-field" autofocus> + 
-        <input type="number" id="w2" class="w-field"> = 
+function runWarmupStep2() {
+    const display = document.getElementById('problem-display');
+    display.innerHTML = `
+        <input type="number" id="w1" class="w-field" autofocus> 
+        <span>+</span> 
+        <input type="number" id="w2" class="w-field"> 
+        <span>=</span> 
         <input type="number" id="w3" class="w-field">
     `;
-    
+
     const fields = [document.getElementById('w1'), document.getElementById('w2'), document.getElementById('w3')];
     
     fields.forEach((f, i) => {
         f.addEventListener('input', () => {
-            if (f.value.length >= f.dataset.maxlength || (i < 2 && f.value.length === 1) || (i === 2 && f.value.length === 2)) {
-                if (fields[i+1]) fields[i+1].focus();
+            // Auto-tab logic based on number of digits
+            const val = f.value;
+            if (i < 2 && val.length >= 1) {
+                fields[i+1].focus();
+            } else if (i === 2) {
+                const targetLen = state.currentProblem.sum >= 10 ? 2 : 1;
+                if (val.length >= targetLen) {
+                    checkWarmup(fields);
+                }
             }
-        });
-        
-        f.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') checkWarmup(fields);
         });
     });
 }
@@ -110,114 +130,101 @@ function checkWarmup(fields) {
     const v2 = parseInt(fields[1].value);
     const v3 = parseInt(fields[2].value);
 
-    // Accept 5+7=12 or 7+5=12
-    const correctAddends = (v1 === state.currentProblem.a && v2 === state.currentProblem.b) || 
-                          (v1 === state.currentProblem.b && v2 === state.currentProblem.a);
-    const correctSum = v3 === state.currentProblem.sum;
-
-    if (correctAddends && correctSum) {
+    const isCommutativeCorrect = (v1 === state.currentProblem.a && v2 === state.currentProblem.b) || 
+                                 (v1 === state.currentProblem.b && v2 === state.currentProblem.a);
+    
+    if (isCommutativeCorrect && v3 === state.currentProblem.sum) {
         state.cccCount++;
         document.getElementById('ccc-count').innerText = `${state.cccCount}/20`;
-        nextRound();
+        initRound();
     } else {
-        speak(`Let's try that again. ${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`);
-        setTimeout(nextRound, 2000);
+        handleError();
     }
 }
 
 /**
- * 4. CHALLENGE MODE (3s Timer, No Narration)
+ * 6. PHASE 2: CHALLENGE (3s Timer, No Narration)
  */
-function startChallenge() {
-    const isLearning = Math.random() < 0.2;
-    const pool = isLearning ? state.learning : state.knowns;
-    const pair = pool[Math.floor(Math.random() * pool.length)];
-    state.currentProblem = { a: pair[0], b: pair[1], sum: pair[0] + pair[1] };
-
-    renderStack(pair[0], pair[1]);
-    problemText.innerHTML = `${pair[0]} + ${pair[1]} = <input type="number" id="ans" class="ans-field" autofocus>`;
+function runChallenge() {
+    state.currentProblem = generateProblemData();
+    renderStack(state.currentProblem.a, state.currentProblem.b);
     
-    const ansField = document.getElementById('ans');
-    ansField.focus();
+    const display = document.getElementById('problem-display');
+    display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = <input type="number" id="ans" class="ans-field" autofocus>`;
+    
+    const input = document.getElementById('ans');
+    input.focus();
 
-    ansField.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleChallengeSubmit(ansField.value);
-    });
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') submitChallenge(input.value);
+    };
 
-    // Hard 3-second timer
+    // Strict 3-second timer
     state.timerId = setTimeout(() => {
-        handleChallengeFailure();
+        if (!state.isProcessing) handleError("Time's up!");
     }, 3000);
 }
 
-function handleChallengeSubmit(val) {
-    clearAllTimers();
+function submitChallenge(val) {
     if (state.isProcessing) return;
+    clearTimeout(state.timerId);
     state.isProcessing = true;
 
     if (parseInt(val) === state.currentProblem.sum) {
         state.streak++;
-        updateUI();
-        if (state.streak === 10) triggerReward("BOUGIE STREAK!", false);
-        else if (state.streak === 20) triggerReward("DOUBLE BOUGIE!", true);
-        else nextRound();
+        updateStats();
+        if (state.streak === 10) triggerReward(false);
+        else if (state.streak === 20) triggerReward(true);
+        else initRound();
     } else {
-        handleChallengeFailure();
+        handleError();
     }
 }
 
-function handleChallengeFailure() {
-    clearAllTimers();
+/**
+ * 7. ERROR HANDLING & REWARDS
+ */
+function handleError() {
+    state.isProcessing = true;
+    clearTimeout(state.timerId);
     state.streak = 0;
-    updateUI();
+    updateStats();
+
+    const display = document.getElementById('problem-display');
+    display.innerHTML = `<span style="color:#e74c3c">${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}</span>`;
     
-    problemText.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}`;
+    // Narrate correct answer, then wait 1 second before new round
     speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
-        setTimeout(nextRound, 1000);
+        setTimeout(initRound, 1000);
     });
 }
 
-/**
- * 5. VISUALS & REWARDS
- */
-function renderStack(a, b) {
-    stackEl.innerHTML = '';
-    const h1 = a * UNIT_PX;
-    const h2 = b * UNIT_PX;
-
-    const b1 = document.createElement('div');
-    b1.className = 'block block-a';
-    b1.style.height = `${h1}px`;
-    b1.style.bottom = '0';
-
-    const b2 = document.createElement('div');
-    b2.className = 'block block-b';
-    b2.style.height = `${h2}px`;
-    b2.style.bottom = `${h1}px`;
-
-    stackEl.appendChild(b1);
-    stackEl.appendChild(b2);
-}
-
-function triggerReward(title, isDouble) {
-    confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+function triggerReward(isDouble) {
+    confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
+    const title = isDouble ? "DOUBLE BOUGIE!" : "BOUGIE STREAK!";
+    const imgPath = isDouble ? 'assets/Double Bougie Ramming.png' : streakImages[Math.floor(Math.random() * streakImages.length)];
     
-    const img = isDouble ? 'assets/Double Bougie Ramming.png' : streakImages[Math.floor(Math.random() * streakImages.length)];
-    rewardOverlay.innerHTML = `<img src="${img}"> <h1>${title}</h1>`;
-    rewardOverlay.style.display = 'flex';
+    const overlay = document.getElementById('reward-overlay');
+    overlay.innerHTML = `<img src="${imgPath}"><h1>${title}</h1>`;
+    overlay.style.display = 'flex';
     
     speak(title, () => {
         setTimeout(() => {
-            rewardOverlay.style.display = 'none';
+            overlay.style.display = 'none';
             if (!isDouble) state.sets++;
-            nextRound();
+            initRound();
         }, 3000);
     });
 }
 
-function updateUI() {
+function updateStats() {
     document.getElementById('streak-val').innerText = state.streak;
     document.getElementById('sets-val').innerText = state.sets;
 }
 
-window.onload = nextRound;
+// Initial Launch
+window.onload = () => {
+    // Necessary for some browsers to load voices
+    window.speechSynthesis.onvoiceschanged = () => { initRound(); window.speechSynthesis.onvoiceschanged = null; };
+    if (window.speechSynthesis.getVoices().length > 0) initRound();
+};
