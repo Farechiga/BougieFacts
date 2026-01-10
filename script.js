@@ -101,7 +101,7 @@ function initRound() {
             const targetLen = state.currentProblem.sum >= 10 ? 2 : 1;
             if (input.value.length >= targetLen) checkChallenge(input.value);
         };
-        state.timerId = setTimeout(() => handleFailure(), 3000);
+        state.timerId = setTimeout(() => handleFailure(), 4000);
     }
 }
 
