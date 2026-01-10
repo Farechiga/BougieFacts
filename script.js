@@ -1,8 +1,3 @@
-/**
- * MATH MAGIC: BOUGIE STREAKS
- * Logic Engine v5.0 - Final Production Fix
- */
-
 const state = {
     phase: 'WARMUP',
     cccCount: 0,
@@ -15,6 +10,7 @@ const state = {
 };
 
 const display = document.getElementById('problem-display');
+const instruct = document.getElementById('instruction-text');
 const stackEl = document.getElementById('visual-stack');
 const overlay = document.getElementById('reward-overlay');
 
@@ -25,10 +21,20 @@ function loadVoices() {
 window.speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
-// Audio Synthesis for "Success Ditty"
+function speak(text, callback) {
+    window.speechSynthesis.cancel();
+    let phoneticText = text.replace(/Bougie/g, "Boh-ghee");
+    const msg = new SpeechSynthesisUtterance(phoneticText);
+    if (state.voice) msg.voice = state.voice;
+    msg.lang = 'en-AU';
+    msg.rate = 0.9;
+    if (callback) msg.onend = callback;
+    window.speechSynthesis.speak(msg);
+}
+
 function playSuccessDitty() {
     const context = new (window.AudioContext || window.webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.50]; 
     notes.forEach((freq, i) => {
         const osc = context.createOscillator();
         const gain = context.createGain();
@@ -44,28 +50,16 @@ function playSuccessDitty() {
     });
 }
 
-function speak(text, callback) {
-    window.speechSynthesis.cancel();
-    // Phonetic: Boh-ghee (Bow-tie + Ghee)
-    let phoneticText = text.replace(/Bougie/g, "Boh-ghee");
-    const msg = new SpeechSynthesisUtterance(phoneticText);
-    if (state.voice) msg.voice = state.voice;
-    msg.lang = 'en-AU';
-    msg.rate = 0.9;
-    if (callback) msg.onend = callback;
-    window.speechSynthesis.speak(msg);
-}
-
 function generateProblem() {
     let a, b, sum;
     if (state.phase === 'WARMUP') {
-        a = Math.floor(Math.random() * 9) + 1; // Limit addends <= 9
+        a = Math.floor(Math.random() * 9) + 1;
         b = Math.floor(Math.random() * 9) + 1;
     } else {
         const isHard = Math.random() < 0.2;
         const limit = isHard ? 20 : 15;
         do {
-            a = Math.floor(Math.random() * 10) + 1; // Limit addends <= 10
+            a = Math.floor(Math.random() * 10) + 1;
             b = Math.floor(Math.random() * 10) + 1;
             sum = a + b;
         } while (sum > limit || (isHard && sum <= 15));
@@ -83,13 +77,16 @@ function renderStack(a, b) {
 function initRound() {
     if (state.timerId) clearTimeout(state.timerId);
     state.isProcessing = false;
+    instruct.innerText = ""; // Clear instructions
     
     if (state.cccCount < 20) {
         state.phase = 'WARMUP';
         state.currentProblem = generateProblem();
         renderStack(state.currentProblem.a, state.currentProblem.b);
         display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}`;
-        speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
+        
+        instruct.innerText = "Remember the numbers!";
+        speak(`Remember the numbers. ${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
             setTimeout(setupWarmupInputs, 800);
         });
     } else {
@@ -99,8 +96,6 @@ function initRound() {
         display.innerHTML = `${state.currentProblem.a} + ${state.currentProblem.b} = <input type="number" id="ans" autofocus>`;
         const input = document.getElementById('ans');
         input.focus();
-        
-        // Auto-advance for Challenge
         input.oninput = () => {
             const targetLen = state.currentProblem.sum >= 10 ? 2 : 1;
             if (input.value.length >= targetLen) checkChallenge(input.value);
@@ -110,6 +105,7 @@ function initRound() {
 }
 
 function setupWarmupInputs() {
+    instruct.innerText = "Recreate the equation!";
     display.innerHTML = `
         <input type="number" id="w1" autofocus> <span>+</span> 
         <input type="number" id="w2"> <span>=</span> 
@@ -151,8 +147,12 @@ function checkChallenge(val) {
     if (parseInt(val) === state.currentProblem.sum) {
         state.streak++;
         updateStats();
-        if (state.streak === 10) triggerReward(false);
-        else if (state.streak === 20) triggerReward(true);
+        // Check for Milestones
+        if (state.streak === 10) triggerReward("Boh-ghee Streak!", "CalfCrash.png");
+        else if (state.streak === 20) triggerReward("Double Boh-ghee!", "DoubleBougieRamming.png");
+        else if (state.streak === 30) triggerReward("Triple Boh-ghee!", "TripleBougiePyramid.png");
+        else if (state.streak === 40) triggerReward("Quad Boh-ghee Squad!", "BougieQuadSquad.png");
+        else if (state.streak === 50) triggerReward("The Perfect Boh-ghee!", "ThePerfectBougie.png");
         else initRound();
     } else { handleFailure(); }
 }
@@ -160,7 +160,7 @@ function checkChallenge(val) {
 function handleFailure() {
     clearTimeout(state.timerId);
     state.isProcessing = true;
-    state.streak = 0;
+    state.streak = 0; // RECOVERY LOGIC: Streak resets to 0
     updateStats();
     display.innerHTML = `<span style="color:#e74c3c">${state.currentProblem.a} + ${state.currentProblem.b} = ${state.currentProblem.sum}</span>`;
     speak(`${state.currentProblem.a} plus ${state.currentProblem.b} is ${state.currentProblem.sum}`, () => {
@@ -168,31 +168,20 @@ function handleFailure() {
     });
 }
 
-function triggerReward(isDouble) {
+function triggerReward(title, imgFile) {
     confetti({ particleCount: 250, spread: 100, origin: { y: 0.6 } });
-    playSuccessDitty(); // Plays the triumphant sound
-
-    const imgs = ['CalfCrash.png', 'CalfHop.png', 'CalfKick.png', 'CalfLickingDaisy.png', 'CalfMilk.png', 'CalfSitting.png', 'CalfVsButterfly.png'];
-    const imgFile = isDouble ? 'DoubleBougieRamming.png' : imgs[Math.floor(Math.random() * imgs.length)];
+    playSuccessDitty();
     
-    // Path uses "Assets/" (Capital A) and backticks for evaluation
-    // Added an 'onerror' logger to help us find the problem if it persists
-    overlay.innerHTML = `<img src="Assets/${imgFile}" 
-        style="max-width: 80%; max-height: 70vh; border-radius: 40px;" 
-        onerror="console.error('Failed to load: Assets/${imgFile}')">`;
-    
+    // Path includes Assets folder (Capital A)
+    overlay.innerHTML = `<img src="Assets/${imgFile}">`;
     overlay.style.display = 'flex';
-
-    // Phonetic spelling: "Boh" sounds like "Bow" in bow-tie
-    const announce = isDouble ? 'Double Boh-ghee!' : 'Boh-ghee Streak!';
     
-    speak(announce, () => {
-        // Wait 3 seconds after the voice finishes so she can see the calf
+    speak(title, () => {
         setTimeout(() => {
             overlay.style.display = 'none';
-            if (!isDouble) state.sets++;
+            if (state.streak === 10) state.sets++;
             initRound();
-        }, 3000);
+        }, 3500);
     });
 }
 
