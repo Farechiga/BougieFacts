@@ -243,7 +243,7 @@ function showStartScreen() {
     display.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <img src="Assets/LetsPlay.png" id="start-image" style="width: 600px; height: auto; margin-bottom: 20px;">
-            <h1 style="font-size: 3.5rem; color: var(--purple); margin: 0;">Click to Play!</h1>
+            <h1 style="font-size: 3.5rem; color: #876EB8; margin: 0; font-family: 'Segoe UI', sans-serif;">Click to Play!</h1>
         </div>
     `;
     
