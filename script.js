@@ -236,13 +236,28 @@ function updateStats() {
 }
 
 /**
- * INITIALIZATION: Starts with the LetsPlay.png
+* INITIALIZATION: Large graphic + Text Prompt
  */
+function showStartScreen() {
+    // Reintroducing the text prompt and a much larger image
+    display.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+            <img src="Assets/LetsPlay.png" id="start-image" style="width: 600px; height: auto; margin-bottom: 20px;">
+            <h1 style="font-size: 3.5rem; color: var(--purple); margin: 0;">Click to Play!</h1>
+        </div>
+    `;
+    
+    // Optional: Narrate the invitation
+    setTimeout(() => {
+        speak("Click the calf to play!");
+    }, 1000);
+}
+
+// Update the bottom of your script to use this new function
 function handleFirstClick() {
     if (!state.currentProblem) initRound();
 }
 
 window.onload = () => {
-    // Show initiation image
-    display.innerHTML = `<img src="Assets/LetsPlay.png" style="max-width: 400px; cursor: pointer;">`;
+    showStartScreen();
 };
